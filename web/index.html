@@ -1,0 +1,965 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mochi HTF</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <style>
+      :root {
+        --bg: #f4f7fb;
+        --panel: #ffffff;
+        --ink: #0f172a;
+        --sub: #475569;
+        --line: #dbe3ee;
+        --accent: #0ea5a5;
+        --accent-2: #1d4ed8;
+        --warn: #b45309;
+        --bad: #b91c1c;
+        --ok: #047857;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 20% 0%, #dff7f5 0%, transparent 45%),
+          radial-gradient(circle at 80% 0%, #dbeafe 0%, transparent 40%),
+          var(--bg);
+      }
+
+      .wrap {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .hero {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+      }
+
+      .title {
+        margin: 0;
+        font-size: 26px;
+        letter-spacing: 0.4px;
+      }
+
+      .desc {
+        margin: 4px 0 0;
+        color: var(--sub);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1.35fr 1fr;
+        gap: 14px;
+      }
+
+      .left-col {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .right-col {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .panel {
+        background: color-mix(in srgb, var(--panel), #ffffff 10%);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+      }
+
+      .panel h2 {
+        margin: 0 0 10px;
+        font-size: 17px;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .toolbar > * {
+        height: 34px;
+      }
+
+      button,
+      select,
+      input,
+      textarea {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 6px 10px;
+        background: #fff;
+        color: var(--ink);
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      button.primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #fff;
+        border: none;
+      }
+
+      button.warn {
+        background: #fff7ed;
+        border-color: #fed7aa;
+        color: #9a3412;
+      }
+
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .hint {
+        font-size: 13px;
+        color: var(--sub);
+      }
+
+      .status-line {
+        margin: 8px 0 0;
+        font-size: 13px;
+      }
+
+      .item {
+        border: 1px solid #b7c9e2;
+        border-left: 5px solid #6f8fb8;
+        border-radius: 10px;
+        margin-bottom: 14px;
+        background: #ffffff;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+      }
+
+      .item > summary {
+        list-style: none;
+      }
+
+      .item > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .item-head {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 10px 12px;
+        cursor: pointer;
+        background: linear-gradient(180deg, #f3f8ff 0%, #e9f1fd 100%);
+      }
+
+      .item-title {
+        flex: 0 1 clamp(150px, 24vw, 240px);
+        min-width: 150px;
+      }
+
+      .card-name-input {
+        width: 100%;
+        min-width: 120px;
+      }
+
+      .item-tools {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        margin-left: auto;
+      }
+
+      .item-body {
+        border-top: 1px solid var(--line);
+        padding: 10px;
+        background: #f8fbff;
+      }
+
+      .item[open] {
+        border-color: #8ea7c9;
+        box-shadow: 0 10px 22px rgba(59, 91, 157, 0.16);
+      }
+
+      .item[open] .item-head {
+        background: linear-gradient(180deg, #ebf4ff 0%, #dfeaff 100%);
+      }
+
+      .step {
+        border: 1px solid #c8d7ea;
+        border-left: 4px solid #9bb5d8;
+        border-radius: 8px;
+        background: #fff;
+        margin-bottom: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+      }
+
+      .step > summary {
+        list-style: none;
+      }
+
+      .step > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .step-head {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 8px 10px;
+        cursor: pointer;
+        background: linear-gradient(180deg, #fbfdff 0%, #f5f9ff 100%);
+      }
+
+      .step-title {
+        flex: 0 1 clamp(140px, 22vw, 220px);
+        min-width: 140px;
+      }
+
+      .step select.step-type-select {
+        width: auto;
+        min-width: 92px;
+        border-color: #9ab0cf;
+        background: #f2f7ff;
+        color: #1f3c66;
+        font-weight: 600;
+      }
+
+      .step-type-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 92px;
+        height: 30px;
+        padding: 0 10px;
+        border: 1px solid #9ab0cf;
+        border-radius: 8px;
+        background: #f2f7ff;
+        color: #1f3c66;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .step-body {
+        border-top: 1px solid var(--line);
+        padding: 10px;
+        background: #f9fbff;
+      }
+
+      .step[open] {
+        border-color: #8ea9cb;
+        box-shadow: 0 8px 18px rgba(30, 64, 175, 0.12);
+      }
+
+      .step[open] .step-head {
+        background: linear-gradient(180deg, #f3f9ff 0%, #eaf3ff 100%);
+      }
+
+      .step-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 0.7fr;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      .step textarea,
+      .step input,
+      .step select {
+        width: 100%;
+      }
+
+      .step textarea {
+        min-height: 62px;
+        resize: vertical;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        text-align: left;
+        border-bottom: 1px solid var(--line);
+        padding: 8px 6px;
+        vertical-align: top;
+      }
+
+      .badge {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 12px;
+      }
+
+      .pass {
+        background: #dcfce7;
+        color: var(--ok);
+      }
+
+      .fail {
+        background: #fef3c7;
+        color: var(--warn);
+      }
+
+      .error {
+        background: #fee2e2;
+        color: var(--bad);
+      }
+
+      .stopped {
+        background: #ffedd5;
+        color: #9a3412;
+      }
+
+      .pending {
+        background: #e2e8f0;
+        color: #334155;
+      }
+
+      .small {
+        font-size: 12px;
+      }
+
+      .item-result {
+        min-width: 56px;
+        text-align: center;
+      }
+
+      .result-note {
+        display: inline-block;
+        max-width: 180px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .case-link {
+        color: #0f4fb8;
+        text-decoration: none;
+      }
+
+      .case-link:hover {
+        text-decoration: underline;
+      }
+
+      .add-card {
+        position: relative;
+        width: 100%;
+        height: 46px;
+        border: 1px dashed #9fb3cf;
+        border-radius: 10px;
+        background: #f8fbff;
+        color: #0f4fb8;
+        font-size: 28px;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+
+      .add-card::after {
+        content: attr(data-hint);
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 4px;
+        text-align: center;
+        font-size: 11px;
+        color: #6f86a8;
+        pointer-events: none;
+      }
+
+      .add-card:hover {
+        background: #eef6ff;
+        border-color: #7aa2d4;
+      }
+
+      .add-item-card {
+        margin-top: 8px;
+      }
+
+      .add-step-card {
+        margin-top: 6px;
+      }
+
+      @media (max-width: 1080px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .step-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app" class="wrap">
+      <div class="hero">
+        <div>
+          <h1 class="title">Mochi HTF</h1>
+          <p class="desc">单机硬件测试框架（Web UI / 插件扩展 / 串行执行）</p>
+        </div>
+        <div class="hint">当前状态：{{ currentStatus }}</div>
+      </div>
+
+      <div class="grid">
+        <div class="left-col">
+          <section class="panel">
+            <h2>导入测试用例</h2>
+            <div class="toolbar">
+              <select v-model="selectedCaseId" style="min-width: 240px">
+                <option value="">请选择用例</option>
+                <option v-for="c in cases" :key="c.id" :value="c.id">{{ c.id }} - {{ c.name }}</option>
+              </select>
+              <button @click="refreshCases">刷新用例</button>
+              <button @click="loadCase" :disabled="!selectedCaseId">加载用例</button>
+              <button class="primary" @click="createCase">创建用例</button>
+              <button class="warn" @click="deleteCase" :disabled="!selectedCaseId || running">删除用例</button>
+            </div>
+            <div class="hint" v-if="!caseData">请先选择并加载一个用例。</div>
+            <div class="hint" v-if="caseData">当前用例：{{ caseData.id }} - {{ caseData.name }}</div>
+          </section>
+
+          <section class="panel">
+            <h2>编辑测试用例</h2>
+            <div class="toolbar">
+              <button @click="toggleEditCase" :disabled="!caseData">{{ isEditingCase ? "退出编辑" : "编辑用例" }}</button>
+              <button class="primary" @click="saveCase" :disabled="!caseData || !isEditingCase">保存用例</button>
+            </div>
+
+            <div class="hint" v-if="!caseData">请先加载一个用例。</div>
+
+            <template v-if="caseData">
+              <div class="toolbar">
+                <input v-model="caseData.id" :disabled="!isEditingCase" placeholder="Case ID" style="width: 220px" />
+                <input v-model="caseData.name" :disabled="!isEditingCase" placeholder="Case Name" style="flex: 1" />
+                <input v-model="caseData.version" :disabled="!isEditingCase" placeholder="Version" style="width: 120px" />
+              </div>
+
+              <details class="item" v-for="(item, itemIdx) in caseData.items" :key="item.id + '_' + itemIdx" :open="!item._collapsed" @toggle="syncItemCollapse(item, $event)">
+                <summary class="item-head">
+                  <div class="item-title">
+                    <input class="card-name-input" v-model="item.name" :disabled="!isEditingCase" @click.stop @mousedown.stop placeholder="Item Name" />
+                  </div>
+                  <span class="small">{{ item.steps.length }} steps</span>
+                  <div class="item-tools">
+                    <button v-if="isEditingCase" @click.stop.prevent="moveItem(itemIdx, -1)" :disabled="itemIdx === 0" title="上移">↑</button>
+                    <button v-if="isEditingCase" @click.stop.prevent="moveItem(itemIdx, 1)" :disabled="itemIdx === caseData.items.length - 1" title="下移">↓</button>
+                    <button v-if="isEditingCase" @click.stop.prevent="removeItem(itemIdx)">删除Item</button>
+                  </div>
+                  <span class="badge item-result" :class="statusClass(itemStatus(item))">{{ itemStatus(item) }}</span>
+                </summary>
+
+                <div class="item-body">
+                  <details class="step" v-for="(step, stepIdx) in item.steps" :key="step.id + '_' + stepIdx" :open="!step._collapsed" @toggle="syncStepCollapse(step, $event)">
+                    <summary class="step-head">
+                      <select v-if="isEditingCase" class="step-type-select" v-model="step.type" @click.stop @mousedown.stop>
+                        <option value="Action">Action</option>
+                        <option value="Verify">Verify</option>
+                      </select>
+                      <span v-else class="step-type-chip">{{ step.type }}</span>
+                      <div class="step-title">
+                        <input class="card-name-input" v-model="step.name" :disabled="!isEditingCase" @click.stop @mousedown.stop placeholder="Step Name" />
+                      </div>
+                      <span class="small result-note" v-if="stepError(item, step)" :title="stepError(item, step)">{{ stepError(item, step) }}</span>
+                      <div class="item-tools">
+                        <button v-if="isEditingCase" @click.stop.prevent="moveStep(item, stepIdx, -1)" :disabled="stepIdx === 0" title="上移">↑</button>
+                        <button v-if="isEditingCase" @click.stop.prevent="moveStep(item, stepIdx, 1)" :disabled="stepIdx === item.steps.length - 1" title="下移">↓</button>
+                        <button v-if="isEditingCase" @click.stop.prevent="removeStep(item, stepIdx)">删除Step</button>
+                      </div>
+                      <span class="badge" :class="statusClass(stepStatus(item, step))">{{ stepStatus(item, step) }}</span>
+                    </summary>
+
+                    <div class="step-body">
+                      <div class="step-grid">
+                        <select v-model="step.plugin" :disabled="!isEditingCase" @change="onPluginChanged(step)">
+                          <option value="">请选择插件</option>
+                          <option v-for="pluginName in pluginOptions(step)" :key="pluginName" :value="pluginName">{{ pluginName }}</option>
+                        </select>
+                        <select v-model="step.action" :disabled="!isEditingCase || actionOptions(step).length === 0">
+                          <option value="">{{ actionOptions(step).length > 0 ? "请选择动作" : "该插件无可用动作" }}</option>
+                          <option v-for="actionName in actionOptions(step)" :key="actionName" :value="actionName">{{ actionName }}</option>
+                        </select>
+                        <input type="number" v-model.number="step.timeout" :disabled="!isEditingCase" min="0.1" step="0.1" placeholder="Timeout" />
+                      </div>
+
+                      <div class="step-grid" style="grid-template-columns: 1fr 1fr">
+                        <textarea v-model="step.paramsText" :disabled="!isEditingCase" placeholder='Params JSON, e.g. {"cmd":"BOOT"}'></textarea>
+                        <textarea v-model="step.expr" :disabled="!isEditingCase || step.type !== 'Verify'" placeholder="Verify expression, e.g. result == 1"></textarea>
+                      </div>
+                    </div>
+                  </details>
+
+                  <button v-if="isEditingCase" class="add-card add-step-card" data-hint="添加工步" @click="addStep(item)" title="新增Step">+</button>
+                </div>
+              </details>
+
+              <button v-if="isEditingCase" class="add-card add-item-card" data-hint="添加测试项" @click="addItem" title="新增Item">+</button>
+            </template>
+          </section>
+        </div>
+
+        <div class="right-col">
+          <section class="panel">
+            <h2>执行与历史</h2>
+            <div class="toolbar">
+              <button class="primary" @click="startRun" :disabled="!caseData || running || isEditingCase">开始测试</button>
+              <button class="warn" @click="stopRun" :disabled="!running">停止测试</button>
+              <button @click="refreshHistory">刷新历史</button>
+            </div>
+
+            <div class="status-line">{{ message }}</div>
+
+            <h3>历史记录</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>开始时间</th>
+                  <th>测试用例</th>
+                  <th>Status</th>
+                  <th>Summary</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="h in history" :key="h.run_id">
+                  <td class="small">{{ formatTime(h.started_at) }}</td>
+                  <td>
+                    <a class="case-link" :href="`/web/report.html?run_id=${encodeURIComponent(h.run_id)}`" target="_blank">{{ h.case_name || "查看详情" }}</a>
+                  </td>
+                  <td><span class="badge" :class="statusClass(h.status)">{{ h.status }}</span></td>
+                  <td class="small">P {{ h.summary.Pass || 0 }} / F {{ h.summary.Fail || 0 }} / E {{ h.summary.Error || 0 }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section class="panel">
+            <h2>插件</h2>
+            <div class="toolbar">
+              <button @click="refreshPlugins">刷新插件</button>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Actions</th>
+                  <th>Error</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="p in plugins" :key="p.name + p.path">
+                  <td>{{ p.name }}</td>
+                  <td class="small">{{ (p.actions || []).join(', ') }}</td>
+                  <td class="small">{{ p.error || '' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const { createApp } = Vue;
+
+      function uid(prefix) {
+        if (window.crypto && crypto.randomUUID) {
+          return `${prefix}_${crypto.randomUUID().slice(0, 8)}`;
+        }
+        return `${prefix}_${Date.now()}`;
+      }
+
+      createApp({
+        data() {
+          return {
+            cases: [],
+            selectedCaseId: "",
+            caseData: null,
+            plugins: [],
+            history: [],
+            running: false,
+            isEditingCase: false,
+            currentReport: null,
+            message: "就绪",
+            pollTimer: null,
+          };
+        },
+        computed: {
+          currentStatus() {
+            if (!this.currentReport) return this.running ? "Running" : "Idle";
+            return this.currentReport.status || (this.running ? "Running" : "Idle");
+          },
+        },
+        methods: {
+          statusClass(status) {
+            const s = (status || "").toLowerCase();
+            if (s === "pass" || s === "completed") return "pass";
+            if (s === "fail") return "fail";
+            if (s === "error") return "error";
+            if (s === "stopped") return "stopped";
+            if (s === "未测试" || s === "notrun" || s === "pending") return "pending";
+            return "";
+          },
+          getItemRunResult(item) {
+            const items = (this.currentReport && this.currentReport.items) || [];
+            return items.find((r) => r.item_id === item.id) || null;
+          },
+          getStepRunResult(item, step) {
+            const itemResult = this.getItemRunResult(item);
+            if (!itemResult) return null;
+            return (itemResult.steps || []).find((s) => s.step_id === step.id) || null;
+          },
+          itemStatus(item) {
+            const result = this.getItemRunResult(item);
+            return result ? result.status : "未测试";
+          },
+          stepStatus(item, step) {
+            const result = this.getStepRunResult(item, step);
+            return result ? result.status : "未测试";
+          },
+          stepError(item, step) {
+            const result = this.getStepRunResult(item, step);
+            return result ? (result.error || "") : "";
+          },
+          formatTime(iso) {
+            if (!iso) return "-";
+            const d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return iso;
+            const pad = (n) => String(n).padStart(2, "0");
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+          },
+          async request(url, options = {}) {
+            const resp = await fetch(url, options);
+            if (!resp.ok) {
+              const data = await resp.json().catch(() => ({}));
+              throw new Error(data.detail || `Request failed: ${resp.status}`);
+            }
+            return resp.json();
+          },
+          normalizeCaseForEditor(rawCase, options = {}) {
+            const collapseMap = options.collapseMap || null;
+            const stepCollapseMap = options.stepCollapseMap || null;
+            const c = JSON.parse(JSON.stringify(rawCase));
+            c.items = c.items || [];
+            c.items.forEach((item) => {
+              if (collapseMap && Object.prototype.hasOwnProperty.call(collapseMap, item.id)) {
+                item._collapsed = !!collapseMap[item.id];
+              } else {
+                item._collapsed = true;
+              }
+              item.steps = item.steps || [];
+              item.steps.forEach((step) => {
+                const stepKey = `${item.id}::${step.id}`;
+                if (stepCollapseMap && Object.prototype.hasOwnProperty.call(stepCollapseMap, stepKey)) {
+                  step._collapsed = !!stepCollapseMap[stepKey];
+                } else {
+                  step._collapsed = true;
+                }
+                step.params = step.params || {};
+                step.paramsText = JSON.stringify(step.params, null, 2);
+                if (step.timeout == null) step.timeout = 5;
+                if (!step.expr) step.expr = "";
+              });
+            });
+            return c;
+          },
+          normalizeCaseForSave() {
+            const c = JSON.parse(JSON.stringify(this.caseData));
+            c.items.forEach((item) => {
+              delete item._collapsed;
+              item.steps.forEach((step) => {
+                try {
+                  step.params = step.paramsText ? JSON.parse(step.paramsText) : {};
+                } catch {
+                  throw new Error(`Step ${step.id} 的 params 不是合法 JSON`);
+                }
+                delete step.paramsText;
+                delete step._collapsed;
+
+                if (step.type !== "Verify") {
+                  step.expr = null;
+                }
+
+                if (step.timeout == null || step.timeout <= 0) {
+                  step.timeout = 5;
+                }
+              });
+            });
+            return c;
+          },
+          async refreshCases() {
+            const data = await this.request("/api/cases");
+            this.cases = data.cases || [];
+          },
+          async loadCase() {
+            if (!this.selectedCaseId) return;
+            const data = await this.request(`/api/cases/${encodeURIComponent(this.selectedCaseId)}`);
+            this.caseData = this.normalizeCaseForEditor(data);
+            this.isEditingCase = false;
+          },
+          generateNewCaseId() {
+            const now = new Date();
+            const pad = (n) => String(n).padStart(2, "0");
+            const baseId = `case_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+            const existingIds = new Set((this.cases || []).map((c) => c.id));
+            if (!existingIds.has(baseId)) {
+              return baseId;
+            }
+            let idx = 1;
+            while (existingIds.has(`${baseId}_${idx}`)) {
+              idx += 1;
+            }
+            return `${baseId}_${idx}`;
+          },
+          async createCase() {
+            const id = this.generateNewCaseId();
+
+            const payload = {
+              id,
+              name: "新建测试用例",
+              version: "1.0.0",
+              items: [],
+            };
+
+            await this.request(`/api/cases/${encodeURIComponent(id)}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+
+            await this.refreshCases();
+            this.selectedCaseId = id;
+            await this.loadCase();
+            this.isEditingCase = true;
+            this.message = `已创建并加载新用例: ${id}（编辑模式）`;
+          },
+          async deleteCase() {
+            try {
+              if (!this.selectedCaseId) return;
+
+              await this.refreshCurrent();
+              if (this.running) {
+                this.message = "测试执行中，不能删除用例";
+                return;
+              }
+
+              const targetId = this.selectedCaseId;
+              const ok = window.confirm(`确认删除测试用例 ${targetId} 吗？此操作不可恢复。`);
+              if (!ok) return;
+
+              await this.request(`/api/cases/${encodeURIComponent(targetId)}`, {
+                method: "DELETE",
+              });
+
+              if (this.caseData && this.caseData.id === targetId) {
+                this.caseData = null;
+                this.isEditingCase = false;
+              }
+
+              await this.refreshCases();
+              this.selectedCaseId = "";
+              this.message = `已删除用例: ${targetId}`;
+            } catch (err) {
+              this.message = `删除失败: ${err.message || String(err)}`;
+            }
+          },
+          async saveCase() {
+            if (!this.caseData) return;
+            const collapseMap = {};
+            const stepCollapseMap = {};
+            (this.caseData.items || []).forEach((item) => {
+              collapseMap[item.id] = !!item._collapsed;
+              (item.steps || []).forEach((step) => {
+                stepCollapseMap[`${item.id}::${step.id}`] = !!step._collapsed;
+              });
+            });
+            const payload = this.normalizeCaseForSave();
+            await this.request(`/api/cases/${encodeURIComponent(payload.id)}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            this.caseData = this.normalizeCaseForEditor(payload, { collapseMap, stepCollapseMap });
+            this.selectedCaseId = payload.id;
+            this.isEditingCase = false;
+            this.message = "保存成功，已切换为只读模式";
+            await this.refreshCases();
+          },
+          toggleEditCase() {
+            if (!this.caseData) return;
+            this.isEditingCase = !this.isEditingCase;
+            this.message = this.isEditingCase ? "已进入编辑模式" : "已切换为只读模式";
+          },
+          addItem() {
+            if (!this.caseData) return;
+            this.caseData.items.push({
+              id: uid("item"),
+              name: "新测试项",
+              _collapsed: true,
+              steps: [],
+            });
+          },
+          syncItemCollapse(item, event) {
+            item._collapsed = !event.target.open;
+          },
+          syncStepCollapse(step, event) {
+            step._collapsed = !event.target.open;
+          },
+          removeItem(idx) {
+            this.caseData.items.splice(idx, 1);
+          },
+          moveItem(idx, delta) {
+            const next = idx + delta;
+            if (next < 0 || next >= this.caseData.items.length) return;
+            const [it] = this.caseData.items.splice(idx, 1);
+            this.caseData.items.splice(next, 0, it);
+          },
+          addStep(item) {
+            item._collapsed = false;
+            const pluginNames = this.getSelectablePluginNames();
+            const pluginName = pluginNames[0] || "sim_device";
+            const actions = this.getPluginActions(pluginName);
+            item.steps.push({
+              id: uid("step"),
+              name: "新工步",
+              type: "Action",
+              plugin: pluginName,
+              action: actions[0] || "",
+              params: {},
+              paramsText: "{}",
+              _collapsed: false,
+              expr: "",
+              timeout: 5,
+            });
+          },
+          removeStep(item, idx) {
+            item.steps.splice(idx, 1);
+          },
+          moveStep(item, idx, delta) {
+            const next = idx + delta;
+            if (next < 0 || next >= item.steps.length) return;
+            const [st] = item.steps.splice(idx, 1);
+            item.steps.splice(next, 0, st);
+          },
+          getSelectablePluginNames() {
+            return (this.plugins || [])
+              .map((p) => p.name)
+              .filter((name) => !!name && !name.startsWith("<load-error:"));
+          },
+          pluginOptions(step) {
+            const names = this.getSelectablePluginNames();
+            if (step && step.plugin && !names.includes(step.plugin)) {
+              return [step.plugin, ...names];
+            }
+            return names;
+          },
+          getPluginActions(pluginName) {
+            const plugin = (this.plugins || []).find((p) => p.name === pluginName);
+            const actions = plugin && Array.isArray(plugin.actions) ? plugin.actions : [];
+            return actions.filter((v) => typeof v === "string" && v.length > 0);
+          },
+          actionOptions(step) {
+            const actions = this.getPluginActions(step && step.plugin ? step.plugin : "");
+            if (step && step.action && !actions.includes(step.action)) {
+              return [step.action, ...actions];
+            }
+            return actions;
+          },
+          onPluginChanged(step) {
+            const actions = this.getPluginActions(step && step.plugin ? step.plugin : "");
+            if (actions.length === 0) {
+              step.action = "";
+              return;
+            }
+            if (!actions.includes(step.action)) {
+              step.action = actions[0];
+            }
+          },
+          async refreshPlugins() {
+            const data = await this.request("/api/plugins");
+            this.plugins = data.plugins || [];
+          },
+          async startRun() {
+            if (!this.caseData) return;
+            if (this.isEditingCase) {
+              this.message = "请先保存并退出编辑模式，再开始测试";
+              return;
+            }
+            const data = await this.request("/api/runs/start", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ case_id: this.caseData.id }),
+            });
+            this.running = true;
+            this.message = `已启动测试: ${data.run_id}`;
+          },
+          async stopRun() {
+            await this.request("/api/runs/stop", { method: "POST" });
+            this.message = "已请求停止，将在当前工步完成后生效";
+          },
+          async refreshCurrent() {
+            const data = await this.request("/api/runs/current");
+            this.running = !!data.running;
+            this.currentReport = data.report;
+            if (!this.running) {
+              await this.refreshHistory();
+            }
+          },
+          async refreshHistory() {
+            const data = await this.request("/api/runs/history?limit=100");
+            this.history = data.history || [];
+          },
+        },
+        async mounted() {
+          try {
+            await this.refreshCases();
+            await this.refreshPlugins();
+            await this.refreshHistory();
+            if (this.cases.length > 0) {
+              this.selectedCaseId = this.cases[0].id;
+              await this.loadCase();
+            }
+            await this.refreshCurrent();
+          } catch (err) {
+            this.message = err.message || String(err);
+          }
+
+          this.pollTimer = setInterval(async () => {
+            try {
+              await this.refreshCurrent();
+            } catch (err) {
+              this.message = err.message || String(err);
+            }
+          }, 1000);
+        },
+        beforeUnmount() {
+          if (this.pollTimer) {
+            clearInterval(this.pollTimer);
+          }
+        },
+      }).mount("#app");
+    </script>
+  </body>
+</html>

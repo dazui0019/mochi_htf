@@ -1,0 +1,48 @@
+{
+  "id": "case_power_on_001",
+  "name": "上电基础测试",
+  "version": "1.0.0",
+  "items": [
+    {
+      "id": "item_boot",
+      "name": "启动检查",
+      "steps": [
+        {
+          "id": "step_send_cmd",
+          "name": "发送启动指令",
+          "type": "Action",
+          "plugin": "sim_device",
+          "action": "send_command",
+          "params": {
+            "cmd": "BOOT"
+          },
+          "expr": null,
+          "timeout": 5.0
+        },
+        {
+          "id": "step_read_state",
+          "name": "读取状态码",
+          "type": "Verify",
+          "plugin": "sim_device",
+          "action": "read_state",
+          "params": {},
+          "expr": "result == 1",
+          "timeout": 5.0
+        },
+        {
+          "id": "step_read_v",
+          "name": "读取电压",
+          "type": "Verify",
+          "plugin": "sim_device",
+          "action": "read_voltage",
+          "params": {
+            "low": 4.95,
+            "high": 5.05
+          },
+          "expr": "result >= 4.9 and result <= 5.1",
+          "timeout": 5.0
+        }
+      ]
+    }
+  ]
+}

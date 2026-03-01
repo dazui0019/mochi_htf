@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>测试记录详情</title>
+    <style>
+      :root {
+        --bg: #f4f7fb;
+        --panel: #ffffff;
+        --ink: #0f172a;
+        --sub: #475569;
+        --line: #dbe3ee;
+        --accent: #0ea5a5;
+        --accent-2: #1d4ed8;
+        --warn: #b45309;
+        --bad: #b91c1c;
+        --ok: #047857;
+        --stop: #9a3412;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 20% 0%, #dff7f5 0%, transparent 45%),
+          radial-gradient(circle at 80% 0%, #dbeafe 0%, transparent 40%),
+          var(--bg);
+      }
+
+      .wrap {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .panel {
+        background: color-mix(in srgb, var(--panel), #ffffff 10%);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+        margin-bottom: 14px;
+      }
+
+      .head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .title {
+        margin: 0;
+        font-size: 24px;
+      }
+
+      .sub {
+        margin-top: 6px;
+        color: var(--sub);
+        font-size: 13px;
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 6px 10px;
+        background: #fff;
+        color: var(--ink);
+        cursor: pointer;
+      }
+
+      button.primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #fff;
+        border: none;
+      }
+
+      .meta {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(120px, 1fr));
+        gap: 10px;
+      }
+
+      .meta .cell {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        background: #fff;
+      }
+
+      .meta .k {
+        font-size: 12px;
+        color: var(--sub);
+      }
+
+      .meta .v {
+        margin-top: 4px;
+        font-size: 15px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        text-align: left;
+        border-bottom: 1px solid var(--line);
+        padding: 8px 6px;
+        vertical-align: top;
+      }
+
+      .badge {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 12px;
+      }
+
+      .pass {
+        background: #dcfce7;
+        color: var(--ok);
+      }
+
+      .fail {
+        background: #fef3c7;
+        color: var(--warn);
+      }
+
+      .error {
+        background: #fee2e2;
+        color: var(--bad);
+      }
+
+      .stopped {
+        background: #ffedd5;
+        color: var(--stop);
+      }
+
+      .small {
+        font-size: 12px;
+      }
+
+      .error-text {
+        color: var(--bad);
+      }
+
+      .item-block {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        margin-bottom: 10px;
+        overflow: hidden;
+      }
+
+      .item-block > summary {
+        list-style: none;
+      }
+
+      .item-block > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .item-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        cursor: pointer;
+        background: #f8fbff;
+      }
+
+      .item-title {
+        font-size: 14px;
+      }
+
+      .step-list {
+        border-top: 1px solid var(--line);
+        padding: 8px;
+      }
+
+      .step-card {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        margin-bottom: 8px;
+        overflow: hidden;
+      }
+
+      .step-card > summary {
+        list-style: none;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 8px 10px;
+        cursor: pointer;
+        background: #fff;
+      }
+
+      .step-card > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .step-name {
+        flex: 1;
+        min-width: 120px;
+      }
+
+      .step-body {
+        border-top: 1px solid var(--line);
+        padding: 10px;
+        background: #fcfdff;
+      }
+
+      .kv {
+        display: grid;
+        grid-template-columns: 90px 1fr;
+        gap: 6px 8px;
+        align-items: start;
+        margin-bottom: 8px;
+      }
+
+      .k {
+        color: var(--sub);
+        font-size: 12px;
+      }
+
+      .result-pre {
+        margin: 0;
+        padding: 8px;
+        background: #f1f5f9;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        font-size: 12px;
+        max-height: 220px;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+
+      @media (max-width: 900px) {
+        .meta {
+          grid-template-columns: repeat(2, minmax(120px, 1fr));
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <section class="panel">
+        <div class="head">
+          <div>
+            <h1 class="title">历史记录详情</h1>
+            <div class="sub" id="subline">加载中...</div>
+          </div>
+          <div class="toolbar">
+            <button onclick="window.location.href='/'">返回主页</button>
+            <button class="primary" id="btn-json">导出 JSON</button>
+            <button class="primary" id="btn-excel">导出 Excel</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="meta">
+          <div class="cell">
+            <div class="k">开始时间</div>
+            <div class="v" id="started-at">-</div>
+          </div>
+          <div class="cell">
+            <div class="k">结束时间</div>
+            <div class="v" id="ended-at">-</div>
+          </div>
+          <div class="cell">
+            <div class="k">测试用例</div>
+            <div class="v" id="case-name">-</div>
+          </div>
+          <div class="cell">
+            <div class="k">状态</div>
+            <div class="v"><span class="badge" id="status-badge">-</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>步骤结果</h2>
+        <div id="step-items"></div>
+      </section>
+    </div>
+
+    <script>
+      function qs(name) {
+        const url = new URL(window.location.href);
+        return url.searchParams.get(name);
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll("\"", "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function formatTime(iso) {
+        if (!iso) return "-";
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return iso;
+        const pad = (n) => String(n).padStart(2, "0");
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      }
+
+      function statusClass(status) {
+        const s = String(status || "").toLowerCase();
+        if (s === "pass") return "pass";
+        if (s === "fail") return "fail";
+        if (s === "error") return "error";
+        if (s === "stopped") return "stopped";
+        return "";
+      }
+
+      function formatResult(value) {
+        if (value === undefined || value === null) return "-";
+        if (typeof value === "string") return value;
+        try {
+          return JSON.stringify(value, null, 2);
+        } catch {
+          return String(value);
+        }
+      }
+
+      async function load() {
+        const runId = qs("run_id");
+        const subline = document.getElementById("subline");
+        if (!runId) {
+          subline.textContent = "缺少 run_id 参数";
+          return;
+        }
+
+        document.getElementById("btn-json").onclick = () => {
+          window.open(`/api/reports/${encodeURIComponent(runId)}.json`, "_blank");
+        };
+        document.getElementById("btn-excel").onclick = () => {
+          window.open(`/api/reports/${encodeURIComponent(runId)}.xlsx`, "_blank");
+        };
+
+        const resp = await fetch(`/api/reports/${encodeURIComponent(runId)}.json`);
+        if (!resp.ok) {
+          const data = await resp.json().catch(() => ({}));
+          subline.textContent = `加载失败: ${data.detail || resp.status}`;
+          return;
+        }
+
+        const report = await resp.json();
+        subline.textContent = `记录ID: ${runId}`;
+
+        document.getElementById("started-at").textContent = formatTime(report.started_at);
+        document.getElementById("ended-at").textContent = formatTime(report.ended_at);
+        document.getElementById("case-name").textContent = report.case_name || "-";
+
+        const status = report.status || "-";
+        const badge = document.getElementById("status-badge");
+        badge.textContent = status;
+        badge.className = `badge ${statusClass(status)}`;
+
+        const wrap = document.getElementById("step-items");
+        const itemsHtml = (report.items || []).map((item) => {
+          const itemStatus = item.status || "-";
+          const stepCount = (item.steps || []).length;
+          const stepsHtml = (item.steps || []).map((step) => {
+            const stepStatus = step.status || "-";
+            const autoOpen = stepStatus === "Fail" || stepStatus === "Error" ? " open" : "";
+            return `
+              <details class="step-card"${autoOpen}>
+                <summary>
+                  <span class="step-name">${escapeHtml(step.step_name)}</span>
+                  <span class="small">${escapeHtml(step.type)}</span>
+                  <span class="badge ${statusClass(stepStatus)}">${escapeHtml(stepStatus)}</span>
+                  <span class="small">耗时 ${escapeHtml(step.duration_ms)} ms</span>
+                </summary>
+                <div class="step-body">
+                  <div class="kv">
+                    <div class="k">开始时间</div><div class="small">${escapeHtml(formatTime(step.started_at))}</div>
+                    <div class="k">结束时间</div><div class="small">${escapeHtml(formatTime(step.ended_at))}</div>
+                    <div class="k">错误信息</div><div class="small error-text">${escapeHtml(step.error || "-")}</div>
+                    <div class="k">返回结果</div><div><pre class="result-pre">${escapeHtml(formatResult(step.result))}</pre></div>
+                  </div>
+                </div>
+              </details>
+            `;
+          }).join("");
+
+          return `
+            <details class="item-block" open>
+              <summary class="item-head">
+                <div class="item-title">${escapeHtml(item.item_name || "-")}</div>
+                <span class="small">${escapeHtml(stepCount)} steps</span>
+                <span class="badge ${statusClass(itemStatus)}">${escapeHtml(itemStatus)}</span>
+              </summary>
+              <div class="step-list">
+                ${stepsHtml || "<div class='small'>无步骤数据</div>"}
+              </div>
+            </details>
+          `;
+        }).join("");
+
+        wrap.innerHTML = itemsHtml || "<div class='small'>无步骤数据</div>";
+      }
+
+      load().catch((err) => {
+        const subline = document.getElementById("subline");
+        subline.textContent = `加载失败: ${err.message || String(err)}`;
+      });
+    </script>
+  </body>
+</html>
