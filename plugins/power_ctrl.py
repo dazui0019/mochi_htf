@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import time
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +37,7 @@ class Plugin:
         return [
             "set_power",
             "set_output",
+            "power_circle",
         ]
 
     def self_check(self) -> dict[str, Any]:
@@ -94,6 +96,30 @@ class Plugin:
                 "stdout": cli_result["stdout"],
             }
 
+        if action == "power_circle":
+            interval = self._get_non_negative_float(params, "interval", 1.0)
+
+            off_result = self._run_cli(["-a", address, "-o", "off"], timeout=10.0)
+            self._raise_if_failed(off_result, action)
+
+            if interval > 0:
+                time.sleep(interval)
+
+            on_result = self._run_cli(["-a", address, "-o", "on"], timeout=10.0)
+            self._raise_if_failed(on_result, action)
+
+            return {
+                "ok": True,
+                "action": action,
+                "address": address,
+                "interval": interval,
+                "sequence": ["off", "on"],
+                "stdout": {
+                    "off": off_result["stdout"],
+                    "on": on_result["stdout"],
+                },
+            }
+
         raise ValueError(f"Unsupported action: {action}")
 
     def _require_address(self) -> str:
@@ -110,6 +136,18 @@ class Plugin:
             return float(params[key])
         except (TypeError, ValueError) as exc:
             raise ValueError(f"Param '{key}' must be a number") from exc
+
+    @staticmethod
+    def _get_non_negative_float(params: dict[str, Any], key: str, default: float) -> float:
+        if key not in params:
+            return float(default)
+        try:
+            value = float(params[key])
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Param '{key}' must be a number") from exc
+        if value < 0:
+            raise ValueError(f"Param '{key}' must be >= 0")
+        return value
 
     def _run_cli(self, args: list[str], timeout: float) -> dict[str, Any]:
         if not self._exe_path.exists():
