@@ -559,23 +559,61 @@
             <h2>插件</h2>
             <div class="toolbar">
               <button @click="refreshPlugins">刷新插件</button>
+              <button @click="runAllPluginSelfChecks" :disabled="pluginBulkSelfChecking || plugins.length === 0">
+                {{ pluginBulkSelfChecking ? "全部自检中..." : "全部自检" }}
+              </button>
             </div>
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Actions</th>
-                  <th>Error</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="p in plugins" :key="p.name + p.path">
-                  <td>{{ p.name }}</td>
-                  <td class="small">{{ (p.actions || []).join(', ') }}</td>
-                  <td class="small">{{ p.error || '' }}</td>
-                </tr>
-              </tbody>
-            </table>
+            <div class="hint" v-if="plugins.length === 0">未发现插件。</div>
+
+            <details
+              class="step"
+              v-for="p in plugins"
+              :key="p.name + p.path"
+              :open="!!pluginCardOpen[p.name]"
+              @toggle="onPluginCardToggle(p, $event)"
+              style="margin-top: 10px"
+            >
+              <summary class="step-head">
+                <div class="step-title">
+                  <span class="small">{{ p.name }}</span>
+                </div>
+                <div class="item-tools">
+                  <span class="badge" :class="pluginSelfCheckStatusClass(p)">{{ pluginSelfCheckStatusText(p) }}</span>
+                </div>
+              </summary>
+
+              <div class="step-body">
+                <div class="small" v-if="p.error" style="color: var(--bad)">插件加载失败：{{ p.error }}</div>
+                <template v-else>
+                  <div class="small" style="margin-bottom: 6px">Actions: {{ (p.actions || []).join(', ') || "-" }}</div>
+                  <div
+                    class="small"
+                    v-if="pluginDebugInfos[p.name] && pluginDebugInfos[p.name].text"
+                    :style="pluginDebugInfos[p.name].type === 'error' ? 'color: var(--bad); margin-bottom: 6px' : 'color: var(--sub); margin-bottom: 6px'"
+                  >{{ pluginDebugInfos[p.name].text }}</div>
+                  <textarea
+                    v-model="pluginConfigTexts[p.name]"
+                    :disabled="!pluginConfigEditing[p.name]"
+                    style="width: 100%; min-height: 120px"
+                    placeholder='插件配置 JSON，例如 {"port":"COM3","baudrate":115200}'
+                  ></textarea>
+                  <div class="toolbar" style="margin-top: 8px">
+                    <button @click="togglePluginConfigEdit(p.name)">{{ pluginConfigEditing[p.name] ? "取消编辑" : "编辑配置" }}</button>
+                    <button class="primary" @click="savePluginConfig(p.name)" :disabled="!pluginConfigEditing[p.name]">保存配置</button>
+                    <button @click="runPluginSelfCheck(p.name)" :disabled="!p.supports_self_check">自检</button>
+                  </div>
+                  <details v-if="pluginSchemaTexts[p.name]">
+                    <summary class="small">配置项说明</summary>
+                    <pre class="small" style="margin: 6px 0 0; white-space: pre-wrap">{{ pluginSchemaTexts[p.name] }}</pre>
+                  </details>
+                  <pre
+                    v-if="pluginSelfCheckResults[p.name]"
+                    class="small"
+                    style="margin: 8px 0 0; background: #f8fafc; border: 1px solid var(--line); border-radius: 8px; padding: 8px"
+                  >{{ pluginSelfCheckResults[p.name] }}</pre>
+                </template>
+              </div>
+            </details>
           </section>
         </div>
       </div>
@@ -598,6 +636,14 @@
             selectedCaseId: "",
             caseData: null,
             plugins: [],
+            pluginConfigTexts: {},
+            pluginSchemaTexts: {},
+            pluginSelfCheckResults: {},
+            pluginSelfCheckStatuses: {},
+            pluginConfigEditing: {},
+            pluginCardOpen: {},
+            pluginDebugInfos: {},
+            pluginBulkSelfChecking: false,
             history: [],
             running: false,
             isEditingCase: false,
@@ -753,7 +799,6 @@
             this.selectedCaseId = id;
             await this.loadCase();
             this.isEditingCase = true;
-            this.message = `已创建并加载新用例: ${id}（编辑模式）`;
           },
           async deleteCase() {
             try {
@@ -761,7 +806,7 @@
 
               await this.refreshCurrent();
               if (this.running) {
-                this.message = "测试执行中，不能删除用例";
+                window.alert("测试执行中，不能删除用例");
                 return;
               }
 
@@ -780,9 +825,8 @@
 
               await this.refreshCases();
               this.selectedCaseId = "";
-              this.message = `已删除用例: ${targetId}`;
             } catch (err) {
-              this.message = `删除失败: ${err.message || String(err)}`;
+              window.alert(`删除失败: ${err.message || String(err)}`);
             }
           },
           async saveCase() {
@@ -804,13 +848,11 @@
             this.caseData = this.normalizeCaseForEditor(payload, { collapseMap, stepCollapseMap });
             this.selectedCaseId = payload.id;
             this.isEditingCase = false;
-            this.message = "保存成功，已切换为只读模式";
             await this.refreshCases();
           },
           toggleEditCase() {
             if (!this.caseData) return;
             this.isEditingCase = !this.isEditingCase;
-            this.message = this.isEditingCase ? "已进入编辑模式" : "已切换为只读模式";
           },
           addItem() {
             if (!this.caseData) return;
@@ -880,6 +922,133 @@
             const actions = plugin && Array.isArray(plugin.actions) ? plugin.actions : [];
             return actions.filter((v) => typeof v === "string" && v.length > 0);
           },
+          isPluginLoadErrorName(pluginName) {
+            return !!pluginName && pluginName.startsWith("<load-error:");
+          },
+          onPluginCardToggle(plugin, event) {
+            if (event.target !== event.currentTarget) return;
+            if (!plugin || !plugin.name) return;
+            this.pluginCardOpen[plugin.name] = !!event.target.open;
+          },
+          setPluginDebug(pluginName, text, type = "info") {
+            if (!pluginName) return;
+            this.pluginDebugInfos[pluginName] = {
+              text,
+              type,
+            };
+          },
+          pluginSelfCheckStatusText(plugin) {
+            if (!plugin || !plugin.name) return "未知";
+            const status = this.pluginSelfCheckStatuses[plugin.name];
+            if (!plugin.supports_self_check) return "不支持";
+            if (status === "pass") return "通过";
+            if (status === "fail") return "失败";
+            if (status === "error") return "异常";
+            return "未自检";
+          },
+          pluginSelfCheckStatusClass(plugin) {
+            if (!plugin || !plugin.name) return "pending";
+            const status = this.pluginSelfCheckStatuses[plugin.name];
+            if (!plugin.supports_self_check) return "pending";
+            if (status === "pass") return "pass";
+            if (status === "fail") return "fail";
+            if (status === "error") return "error";
+            return "pending";
+          },
+          async togglePluginConfigEdit(pluginName) {
+            if (!pluginName || this.isPluginLoadErrorName(pluginName)) return;
+            const editing = !!this.pluginConfigEditing[pluginName];
+            if (!editing) {
+              await this.loadPluginConfig(pluginName);
+              this.pluginConfigEditing[pluginName] = true;
+              return;
+            }
+            this.pluginConfigEditing[pluginName] = false;
+            await this.loadPluginConfig(pluginName);
+          },
+          parsePluginConfigText(pluginName) {
+            let parsed = {};
+            const text = this.pluginConfigTexts[pluginName] || "{}";
+            try {
+              parsed = text ? JSON.parse(text) : {};
+            } catch {
+              throw new Error("插件配置不是合法 JSON");
+            }
+            if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+              throw new Error("插件配置必须是 JSON 对象");
+            }
+            return parsed;
+          },
+          async loadPluginConfig(pluginName) {
+            try {
+              if (!pluginName || this.isPluginLoadErrorName(pluginName)) return;
+              const data = await this.request(`/api/plugins/${encodeURIComponent(pluginName)}/config`);
+              this.pluginConfigTexts[pluginName] = JSON.stringify(data.config || {}, null, 2);
+              this.pluginSchemaTexts[pluginName] = JSON.stringify(data.config_schema || {}, null, 2);
+              if (!Object.prototype.hasOwnProperty.call(this.pluginSelfCheckResults, pluginName)) {
+                this.pluginSelfCheckResults[pluginName] = "";
+              }
+              const msg = `已加载插件配置: ${pluginName}`;
+              this.setPluginDebug(pluginName, msg, "info");
+            } catch (err) {
+              this.setPluginDebug(pluginName, err.message || String(err), "error");
+            }
+          },
+          async savePluginConfig(pluginName) {
+            try {
+              if (!pluginName || this.isPluginLoadErrorName(pluginName)) return;
+              if (!this.pluginConfigEditing[pluginName]) return;
+              const parsed = this.parsePluginConfigText(pluginName);
+              await this.request(`/api/plugins/${encodeURIComponent(pluginName)}/config`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ config: parsed }),
+              });
+              this.pluginConfigEditing[pluginName] = false;
+              await this.loadPluginConfig(pluginName);
+              await this.refreshPlugins();
+              const msg = `已保存插件配置: ${pluginName}`;
+              this.setPluginDebug(pluginName, msg, "info");
+            } catch (err) {
+              this.setPluginDebug(pluginName, err.message || String(err), "error");
+            }
+          },
+          async runPluginSelfCheck(pluginName) {
+            try {
+              if (!pluginName || this.isPluginLoadErrorName(pluginName)) return;
+              const parsed = this.parsePluginConfigText(pluginName);
+              const data = await this.request(`/api/plugins/${encodeURIComponent(pluginName)}/self-check`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ config: parsed, timeout: 5 }),
+              });
+              const result = data.result || {};
+              this.pluginSelfCheckResults[pluginName] = JSON.stringify(result, null, 2);
+              this.pluginSelfCheckStatuses[pluginName] = result.ok ? "pass" : "fail";
+              const msg = result.ok ? `插件自检通过: ${pluginName}` : `插件自检失败: ${pluginName}`;
+              this.setPluginDebug(pluginName, msg, result.ok ? "info" : "error");
+            } catch (err) {
+              this.pluginSelfCheckStatuses[pluginName] = "error";
+              this.setPluginDebug(pluginName, err.message || String(err), "error");
+            }
+          },
+          async runAllPluginSelfChecks() {
+            if (this.pluginBulkSelfChecking) return;
+            this.pluginBulkSelfChecking = true;
+            try {
+              const loadedPlugins = (this.plugins || []).filter((p) => p && p.name && !this.isPluginLoadErrorName(p.name));
+              for (const plugin of loadedPlugins) {
+                if (!plugin.supports_self_check) {
+                  this.pluginSelfCheckStatuses[plugin.name] = "unsupported";
+                  this.setPluginDebug(plugin.name, `插件不支持自检: ${plugin.name}`, "info");
+                  continue;
+                }
+                await this.runPluginSelfCheck(plugin.name);
+              }
+            } finally {
+              this.pluginBulkSelfChecking = false;
+            }
+          },
           actionOptions(step) {
             const actions = this.getPluginActions(step && step.plugin ? step.plugin : "");
             if (step && step.action && !actions.includes(step.action)) {
@@ -900,24 +1069,96 @@
           async refreshPlugins() {
             const data = await this.request("/api/plugins");
             this.plugins = data.plugins || [];
+            const validNames = new Set();
+            (this.plugins || []).forEach((plugin) => {
+              if (!plugin || !plugin.name || this.isPluginLoadErrorName(plugin.name)) return;
+              validNames.add(plugin.name);
+
+              if (!Object.prototype.hasOwnProperty.call(this.pluginConfigTexts, plugin.name)) {
+                this.pluginConfigTexts[plugin.name] = JSON.stringify(plugin.config || {}, null, 2);
+              }
+              if (!Object.prototype.hasOwnProperty.call(this.pluginSchemaTexts, plugin.name)) {
+                this.pluginSchemaTexts[plugin.name] = JSON.stringify(plugin.config_schema || {}, null, 2);
+              }
+              if (!Object.prototype.hasOwnProperty.call(this.pluginSelfCheckResults, plugin.name)) {
+                this.pluginSelfCheckResults[plugin.name] = "";
+              }
+              if (!Object.prototype.hasOwnProperty.call(this.pluginSelfCheckStatuses, plugin.name)) {
+                this.pluginSelfCheckStatuses[plugin.name] = plugin.supports_self_check ? "not_checked" : "unsupported";
+              }
+              if (!plugin.supports_self_check) {
+                this.pluginSelfCheckStatuses[plugin.name] = "unsupported";
+              } else if (this.pluginSelfCheckStatuses[plugin.name] === "unsupported") {
+                this.pluginSelfCheckStatuses[plugin.name] = "not_checked";
+              }
+              if (!Object.prototype.hasOwnProperty.call(this.pluginConfigEditing, plugin.name)) {
+                this.pluginConfigEditing[plugin.name] = false;
+              }
+              if (!Object.prototype.hasOwnProperty.call(this.pluginDebugInfos, plugin.name)) {
+                this.pluginDebugInfos[plugin.name] = { text: "", type: "info" };
+              }
+              if (!Object.prototype.hasOwnProperty.call(this.pluginCardOpen, plugin.name)) {
+                this.pluginCardOpen[plugin.name] = false;
+              }
+            });
+
+            Object.keys(this.pluginConfigTexts).forEach((name) => {
+              if (!validNames.has(name)) delete this.pluginConfigTexts[name];
+            });
+            Object.keys(this.pluginSchemaTexts).forEach((name) => {
+              if (!validNames.has(name)) delete this.pluginSchemaTexts[name];
+            });
+            Object.keys(this.pluginSelfCheckResults).forEach((name) => {
+              if (!validNames.has(name)) delete this.pluginSelfCheckResults[name];
+            });
+            Object.keys(this.pluginSelfCheckStatuses).forEach((name) => {
+              if (!validNames.has(name)) delete this.pluginSelfCheckStatuses[name];
+            });
+            Object.keys(this.pluginConfigEditing).forEach((name) => {
+              if (!validNames.has(name)) delete this.pluginConfigEditing[name];
+            });
+            Object.keys(this.pluginDebugInfos).forEach((name) => {
+              if (!validNames.has(name)) delete this.pluginDebugInfos[name];
+            });
+            Object.keys(this.pluginCardOpen).forEach((name) => {
+              if (!validNames.has(name)) delete this.pluginCardOpen[name];
+            });
+
+            if ((this.plugins || []).length === 0) {
+              this.pluginConfigTexts = {};
+              this.pluginSchemaTexts = {};
+              this.pluginSelfCheckResults = {};
+              this.pluginSelfCheckStatuses = {};
+              this.pluginConfigEditing = {};
+              this.pluginDebugInfos = {};
+              this.pluginCardOpen = {};
+            }
           },
           async startRun() {
-            if (!this.caseData) return;
-            if (this.isEditingCase) {
-              this.message = "请先保存并退出编辑模式，再开始测试";
-              return;
+            try {
+              if (!this.caseData) return;
+              if (this.isEditingCase) {
+                this.message = "请先保存并退出编辑模式，再开始测试";
+                return;
+              }
+              const data = await this.request("/api/runs/start", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ case_id: this.caseData.id }),
+              });
+              this.running = true;
+              this.message = `已启动测试: ${data.run_id}`;
+            } catch (err) {
+              this.message = `启动测试失败: ${err.message || String(err)}`;
             }
-            const data = await this.request("/api/runs/start", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ case_id: this.caseData.id }),
-            });
-            this.running = true;
-            this.message = `已启动测试: ${data.run_id}`;
           },
           async stopRun() {
-            await this.request("/api/runs/stop", { method: "POST" });
-            this.message = "已请求停止，将在当前工步完成后生效";
+            try {
+              await this.request("/api/runs/stop", { method: "POST" });
+              this.message = "已请求停止，将在当前工步完成后生效";
+            } catch (err) {
+              this.message = `停止测试失败: ${err.message || String(err)}`;
+            }
           },
           async refreshCurrent() {
             const data = await this.request("/api/runs/current");
@@ -943,14 +1184,16 @@
             }
             await this.refreshCurrent();
           } catch (err) {
-            this.message = err.message || String(err);
+            console.error(err);
           }
 
           this.pollTimer = setInterval(async () => {
             try {
               await this.refreshCurrent();
             } catch (err) {
-              this.message = err.message || String(err);
+              if (this.running) {
+                this.message = `执行状态刷新失败: ${err.message || String(err)}`;
+              }
             }
           }, 1000);
         },

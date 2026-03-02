@@ -12,6 +12,7 @@ class AppConfig:
     plugins_dir: Path
     reports_dir: Path
     data_dir: Path
+    plugin_config_path: Path
     static_dir: Path
     db_path: Path
     history_limit: int = 1000
@@ -25,6 +26,7 @@ def load_config() -> AppConfig:
     plugins_dir = root / "plugins"
     reports_dir = root / "reports"
     data_dir = root / "data"
+    plugin_config_path = data_dir / "plugin_configs.json"
     static_dir = root / "web"
     db_path = data_dir / "app.db"
 
@@ -37,6 +39,7 @@ def load_config() -> AppConfig:
         plugins_dir=plugins_dir,
         reports_dir=reports_dir,
         data_dir=data_dir,
+        plugin_config_path=plugin_config_path,
         static_dir=static_dir,
         db_path=db_path,
     )
