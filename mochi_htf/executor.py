@@ -141,16 +141,18 @@ class ExecutionService:
                 item_result = {
                     "item_id": item.id,
                     "item_name": item.name,
-                    "status": "Pass",
+                    "status": "Running",
                     "steps": [],
                 }
                 has_fail = False
+                has_error = False
+                item_stopped = False
                 report["items"].append(item_result)
                 self._set_current_report(report)
 
                 for step in item.steps:
                     if self._stop_event.is_set():
-                        item_result["status"] = "Stopped"
+                        item_stopped = True
                         break
 
                     step_result = self._run_step(step)
@@ -160,16 +162,22 @@ class ExecutionService:
                         has_fail = True
 
                     if step_result["status"] == "Error":
-                        item_result["status"] = "Error"
+                        has_error = True
 
                     self._refresh_summary(report)
                     self._set_current_report(report)
 
-                    if step_result["status"] == "Error":
+                    if has_error:
                         break
 
-                if item_result["status"] not in {"Error", "Stopped"} and has_fail:
+                if item_stopped or self._stop_event.is_set():
+                    item_result["status"] = "Stopped"
+                elif has_error:
+                    item_result["status"] = "Error"
+                elif has_fail:
                     item_result["status"] = "Fail"
+                else:
+                    item_result["status"] = "Pass"
 
                 self._refresh_summary(report)
                 self._set_current_report(report)
