@@ -1,0 +1,50 @@
+{
+  "id": "case_power_ctrl_001",
+  "name": "电源控制基础测试",
+  "version": "1.0.0",
+  "items": [
+    {
+      "id": "item_power_basic",
+      "name": "电源参数与输出控制",
+      "steps": [
+        {
+          "id": "step_set_power",
+          "name": "设置输出电压电流",
+          "type": "Action",
+          "plugin": "power_ctrl",
+          "action": "set_power",
+          "params": {
+            "voltage": 12,
+            "current": 2
+          },
+          "expr": null,
+          "timeout": 10.0
+        },
+        {
+          "id": "step_output_on",
+          "name": "打开输出",
+          "type": "Action",
+          "plugin": "power_ctrl",
+          "action": "set_output",
+          "params": {
+            "output": "on"
+          },
+          "expr": null,
+          "timeout": 10.0
+        },
+        {
+          "id": "step_output_off",
+          "name": "关闭输出",
+          "type": "Action",
+          "plugin": "power_ctrl",
+          "action": "set_output",
+          "params": {
+            "output": "off"
+          },
+          "expr": null,
+          "timeout": 10.0
+        }
+      ]
+    }
+  ]
+}

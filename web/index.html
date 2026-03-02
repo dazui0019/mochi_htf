@@ -586,11 +586,6 @@
                 <div class="small" v-if="p.error" style="color: var(--bad)">插件加载失败：{{ p.error }}</div>
                 <template v-else>
                   <div class="small" style="margin-bottom: 6px">Actions: {{ (p.actions || []).join(', ') || "-" }}</div>
-                  <div
-                    class="small"
-                    v-if="pluginDebugInfos[p.name] && pluginDebugInfos[p.name].text"
-                    :style="pluginDebugInfos[p.name].type === 'error' ? 'color: var(--bad); margin-bottom: 6px' : 'color: var(--sub); margin-bottom: 6px'"
-                  >{{ pluginDebugInfos[p.name].text }}</div>
                   <textarea
                     v-model="pluginConfigTexts[p.name]"
                     :disabled="!pluginConfigEditing[p.name]"
@@ -606,11 +601,6 @@
                     <summary class="small">配置项说明</summary>
                     <pre class="small" style="margin: 6px 0 0; white-space: pre-wrap">{{ pluginSchemaTexts[p.name] }}</pre>
                   </details>
-                  <pre
-                    v-if="pluginSelfCheckResults[p.name]"
-                    class="small"
-                    style="margin: 8px 0 0; background: #f8fafc; border: 1px solid var(--line); border-radius: 8px; padding: 8px"
-                  >{{ pluginSelfCheckResults[p.name] }}</pre>
                 </template>
               </div>
             </details>
@@ -638,11 +628,9 @@
             plugins: [],
             pluginConfigTexts: {},
             pluginSchemaTexts: {},
-            pluginSelfCheckResults: {},
             pluginSelfCheckStatuses: {},
             pluginConfigEditing: {},
             pluginCardOpen: {},
-            pluginDebugInfos: {},
             pluginBulkSelfChecking: false,
             history: [],
             running: false,
@@ -930,13 +918,6 @@
             if (!plugin || !plugin.name) return;
             this.pluginCardOpen[plugin.name] = !!event.target.open;
           },
-          setPluginDebug(pluginName, text, type = "info") {
-            if (!pluginName) return;
-            this.pluginDebugInfos[pluginName] = {
-              text,
-              type,
-            };
-          },
           pluginSelfCheckStatusText(plugin) {
             if (!plugin || !plugin.name) return "未知";
             const status = this.pluginSelfCheckStatuses[plugin.name];
@@ -985,13 +966,8 @@
               const data = await this.request(`/api/plugins/${encodeURIComponent(pluginName)}/config`);
               this.pluginConfigTexts[pluginName] = JSON.stringify(data.config || {}, null, 2);
               this.pluginSchemaTexts[pluginName] = JSON.stringify(data.config_schema || {}, null, 2);
-              if (!Object.prototype.hasOwnProperty.call(this.pluginSelfCheckResults, pluginName)) {
-                this.pluginSelfCheckResults[pluginName] = "";
-              }
-              const msg = `已加载插件配置: ${pluginName}`;
-              this.setPluginDebug(pluginName, msg, "info");
             } catch (err) {
-              this.setPluginDebug(pluginName, err.message || String(err), "error");
+              this.message = `加载插件配置失败: ${err.message || String(err)}`;
             }
           },
           async savePluginConfig(pluginName) {
@@ -1007,10 +983,8 @@
               this.pluginConfigEditing[pluginName] = false;
               await this.loadPluginConfig(pluginName);
               await this.refreshPlugins();
-              const msg = `已保存插件配置: ${pluginName}`;
-              this.setPluginDebug(pluginName, msg, "info");
             } catch (err) {
-              this.setPluginDebug(pluginName, err.message || String(err), "error");
+              this.message = `保存插件配置失败: ${err.message || String(err)}`;
             }
           },
           async runPluginSelfCheck(pluginName) {
@@ -1023,13 +997,10 @@
                 body: JSON.stringify({ config: parsed, timeout: 5 }),
               });
               const result = data.result || {};
-              this.pluginSelfCheckResults[pluginName] = JSON.stringify(result, null, 2);
               this.pluginSelfCheckStatuses[pluginName] = result.ok ? "pass" : "fail";
-              const msg = result.ok ? `插件自检通过: ${pluginName}` : `插件自检失败: ${pluginName}`;
-              this.setPluginDebug(pluginName, msg, result.ok ? "info" : "error");
             } catch (err) {
               this.pluginSelfCheckStatuses[pluginName] = "error";
-              this.setPluginDebug(pluginName, err.message || String(err), "error");
+              this.message = `插件自检失败: ${err.message || String(err)}`;
             }
           },
           async runAllPluginSelfChecks() {
@@ -1040,7 +1011,6 @@
               for (const plugin of loadedPlugins) {
                 if (!plugin.supports_self_check) {
                   this.pluginSelfCheckStatuses[plugin.name] = "unsupported";
-                  this.setPluginDebug(plugin.name, `插件不支持自检: ${plugin.name}`, "info");
                   continue;
                 }
                 await this.runPluginSelfCheck(plugin.name);
@@ -1080,9 +1050,6 @@
               if (!Object.prototype.hasOwnProperty.call(this.pluginSchemaTexts, plugin.name)) {
                 this.pluginSchemaTexts[plugin.name] = JSON.stringify(plugin.config_schema || {}, null, 2);
               }
-              if (!Object.prototype.hasOwnProperty.call(this.pluginSelfCheckResults, plugin.name)) {
-                this.pluginSelfCheckResults[plugin.name] = "";
-              }
               if (!Object.prototype.hasOwnProperty.call(this.pluginSelfCheckStatuses, plugin.name)) {
                 this.pluginSelfCheckStatuses[plugin.name] = plugin.supports_self_check ? "not_checked" : "unsupported";
               }
@@ -1093,9 +1060,6 @@
               }
               if (!Object.prototype.hasOwnProperty.call(this.pluginConfigEditing, plugin.name)) {
                 this.pluginConfigEditing[plugin.name] = false;
-              }
-              if (!Object.prototype.hasOwnProperty.call(this.pluginDebugInfos, plugin.name)) {
-                this.pluginDebugInfos[plugin.name] = { text: "", type: "info" };
               }
               if (!Object.prototype.hasOwnProperty.call(this.pluginCardOpen, plugin.name)) {
                 this.pluginCardOpen[plugin.name] = false;
@@ -1108,17 +1072,11 @@
             Object.keys(this.pluginSchemaTexts).forEach((name) => {
               if (!validNames.has(name)) delete this.pluginSchemaTexts[name];
             });
-            Object.keys(this.pluginSelfCheckResults).forEach((name) => {
-              if (!validNames.has(name)) delete this.pluginSelfCheckResults[name];
-            });
             Object.keys(this.pluginSelfCheckStatuses).forEach((name) => {
               if (!validNames.has(name)) delete this.pluginSelfCheckStatuses[name];
             });
             Object.keys(this.pluginConfigEditing).forEach((name) => {
               if (!validNames.has(name)) delete this.pluginConfigEditing[name];
-            });
-            Object.keys(this.pluginDebugInfos).forEach((name) => {
-              if (!validNames.has(name)) delete this.pluginDebugInfos[name];
             });
             Object.keys(this.pluginCardOpen).forEach((name) => {
               if (!validNames.has(name)) delete this.pluginCardOpen[name];
@@ -1127,14 +1085,16 @@
             if ((this.plugins || []).length === 0) {
               this.pluginConfigTexts = {};
               this.pluginSchemaTexts = {};
-              this.pluginSelfCheckResults = {};
               this.pluginSelfCheckStatuses = {};
               this.pluginConfigEditing = {};
-              this.pluginDebugInfos = {};
               this.pluginCardOpen = {};
             }
           },
+          clearRunResults() {
+            this.currentReport = null;
+          },
           async startRun() {
+            const previousReport = this.currentReport;
             try {
               if (!this.caseData) return;
               if (this.isEditingCase) {
@@ -1146,9 +1106,11 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ case_id: this.caseData.id }),
               });
+              this.clearRunResults();
               this.running = true;
               this.message = `已启动测试: ${data.run_id}`;
             } catch (err) {
+              this.currentReport = previousReport;
               this.message = `启动测试失败: ${err.message || String(err)}`;
             }
           },
