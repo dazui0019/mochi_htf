@@ -253,6 +253,73 @@
         word-break: break-all;
       }
 
+      .artifact-list {
+        margin-top: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .artifact-card {
+        margin-top: 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px;
+        background: #fff;
+      }
+
+      .artifact-head {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 6px;
+      }
+
+      .artifact-kind {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 1px 8px;
+        font-size: 11px;
+        background: #e2e8f0;
+        color: #334155;
+      }
+
+      .artifact-img {
+        display: block;
+        margin-top: 6px;
+        max-width: 100%;
+        max-height: 260px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #f8fafc;
+      }
+
+      .artifact-pre {
+        margin: 0;
+        padding: 8px;
+        background: #f8fafc;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        font-size: 12px;
+        max-height: 220px;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+
+      .artifact-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+
+      .artifact-table th,
+      .artifact-table td {
+        border-bottom: 1px solid var(--line);
+        padding: 6px 4px;
+      }
+
       @media (max-width: 900px) {
         .meta {
           grid-template-columns: repeat(2, minmax(120px, 1fr));
@@ -345,6 +412,136 @@
         }
       }
 
+      function extractArtifacts(result) {
+        if (!result || typeof result !== "object") return [];
+
+        const artifacts = [];
+        if (Array.isArray(result.artifacts)) {
+          result.artifacts.forEach((item) => {
+            if (item && typeof item === "object") {
+              artifacts.push(item);
+            }
+          });
+        }
+
+        // Backward compatibility for historical reports.
+        if (artifacts.length === 0 && result.artifact && typeof result.artifact === "object") {
+          artifacts.push(result.artifact);
+        }
+
+        return artifacts;
+      }
+
+      function limitLines(text, maxLines = 20) {
+        const lines = String(text || "").split(/\r?\n/);
+        if (lines.length <= maxLines) return String(text || "");
+        const remain = lines.length - maxLines;
+        return `${lines.slice(0, maxLines).join("\n")}\n... (剩余 ${remain} 行)`;
+      }
+
+      function formatArtifactMeta(artifact) {
+        const parts = [];
+        if (artifact.path) parts.push(`路径：${escapeHtml(String(artifact.path))}`);
+        if (artifact.filename) parts.push(`文件：${escapeHtml(String(artifact.filename))}`);
+        if (artifact.url) parts.push(`<a class="small" href="${escapeHtml(String(artifact.url))}" target="_blank">打开附件</a>`);
+        return parts.join(" | ");
+      }
+
+      function formatWaveformTable(artifact) {
+        const series = Array.isArray(artifact.series) ? artifact.series.filter((s) => s && typeof s === "object") : [];
+        if (series.length === 0) {
+          const fallback = artifact.data !== undefined ? artifact.data : artifact.values;
+          if (fallback === undefined) {
+            return "<div class='small'>无波形数据</div>";
+          }
+          return `<pre class="artifact-pre">${escapeHtml(formatResult(fallback))}</pre>`;
+        }
+
+        const rows = series.map((s, idx) => {
+          const name = s.name || `series_${idx + 1}`;
+          const unit = s.unit || "-";
+          const points = Array.isArray(s.points) ? s.points : (Array.isArray(s.samples) ? s.samples : []);
+          const count = Array.isArray(points) ? points.length : 0;
+          return `
+            <tr>
+              <td>${escapeHtml(String(name))}</td>
+              <td>${escapeHtml(String(unit))}</td>
+              <td>${escapeHtml(String(count))}</td>
+            </tr>
+          `;
+        }).join("");
+
+        return `
+          <table class="artifact-table">
+            <thead>
+              <tr>
+                <th>通道</th>
+                <th>单位</th>
+                <th>采样点</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+        `;
+      }
+
+      function formatArtifactBody(artifact) {
+        const type = String(artifact.type || "").toLowerCase();
+
+        if (type === "image") {
+          const url = String(artifact.url || artifact.data_url || "").trim();
+          if (!url) return "<div class='small'>图片附件缺少 url</div>";
+          return `<img class="artifact-img" src="${escapeHtml(url)}" alt="${escapeHtml(String(artifact.label || artifact.filename || "image"))}" />`;
+        }
+
+        if (type === "log") {
+          const content = artifact.content;
+          if (typeof content === "string" && content.length > 0) {
+            return `<pre class="artifact-pre">${escapeHtml(limitLines(content, 40))}</pre>`;
+          }
+          return "<div class='small'>日志内容未内嵌，请通过附件链接查看</div>";
+        }
+
+        if (type === "csv") {
+          const content = artifact.content;
+          if (typeof content === "string" && content.length > 0) {
+            return `<pre class="artifact-pre">${escapeHtml(limitLines(content, 30))}</pre>`;
+          }
+          return "<div class='small'>CSV 内容未内嵌，请通过附件链接查看</div>";
+        }
+
+        if (type === "waveform") {
+          return formatWaveformTable(artifact);
+        }
+
+        return `<pre class="artifact-pre">${escapeHtml(formatResult(artifact))}</pre>`;
+      }
+
+      function formatArtifacts(result) {
+        const artifacts = extractArtifacts(result);
+        if (artifacts.length === 0) return "";
+
+        const cards = artifacts.map((artifact, idx) => {
+          const type = String(artifact.type || "unknown").toLowerCase();
+          const label = String(artifact.label || artifact.filename || `artifact_${idx + 1}`);
+          const meta = formatArtifactMeta(artifact);
+          return `
+            <div class="artifact-card">
+              <div class="artifact-head">
+                <span class="artifact-kind">${escapeHtml(type)}</span>
+                <span class="small">${escapeHtml(label)}</span>
+              </div>
+              ${meta ? `<div class="small" style="margin-bottom: 6px">${meta}</div>` : ""}
+              ${formatArtifactBody(artifact)}
+            </div>
+          `;
+        }).join("");
+
+        return `<div class="artifact-list">${cards}</div>`;
+      }
+
       async function load() {
         const runId = qs("run_id");
         const subline = document.getElementById("subline");
@@ -401,6 +598,7 @@
                     <div class="k">错误信息</div><div class="small error-text">${escapeHtml(step.error || "-")}</div>
                     <div class="k">返回结果</div><div><pre class="result-pre">${escapeHtml(formatResult(step.result))}</pre></div>
                   </div>
+                  ${formatArtifacts(step.result)}
                 </div>
               </details>
             `;

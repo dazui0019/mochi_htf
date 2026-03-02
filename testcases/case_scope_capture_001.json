@@ -1,0 +1,38 @@
+{
+  "id": "case_scope_capture_001",
+  "name": "示波器截图归档示例",
+  "version": "1.0.0",
+  "items": [
+    {
+      "id": "item_scope_capture",
+      "name": "截图流程",
+      "steps": [
+        {
+          "id": "step_wait_signal",
+          "name": "等待信号稳定",
+          "type": "Action",
+          "plugin": "system_tools",
+          "action": "delay",
+          "params": {
+            "seconds": 0.2
+          },
+          "expr": null,
+          "timeout": 5.0
+        },
+        {
+          "id": "step_scope_shot",
+          "name": "保存示波器截图",
+          "type": "Action",
+          "plugin": "oscilloscope",
+          "action": "capture_screenshot",
+          "params": {
+            "label": "after_delay",
+            "capture_mode": "placeholder"
+          },
+          "expr": null,
+          "timeout": 20.0
+        }
+      ]
+    }
+  ]
+}

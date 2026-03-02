@@ -175,6 +175,21 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=404, detail="Report not found")
         return report
 
+    @app.get("/api/reports/{run_id}/artifacts/{artifact_path:path}")
+    def report_artifact(run_id: str, artifact_path: str) -> FileResponse:
+        artifact_root = (config.reports_dir / run_id / "artifacts").resolve()
+        target = (artifact_root / artifact_path).resolve()
+
+        try:
+            target.relative_to(artifact_root)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid artifact path") from exc
+
+        if not target.exists() or not target.is_file():
+            raise HTTPException(status_code=404, detail="Artifact not found")
+
+        return FileResponse(path=target, filename=target.name)
+
     @app.get("/api/reports/{run_id}.xlsx")
     def report_excel(run_id: str) -> FileResponse:
         try:

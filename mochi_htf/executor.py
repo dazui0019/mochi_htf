@@ -155,7 +155,7 @@ class ExecutionService:
                         item_stopped = True
                         break
 
-                    step_result = self._run_step(step)
+                    step_result = self._run_step(run_id, case.id, item.id, step)
                     item_result["steps"].append(step_result)
 
                     if step_result["status"] == "Fail":
@@ -202,7 +202,7 @@ class ExecutionService:
                 self._runner_thread = None
                 self._stop_event.clear()
 
-    def _run_step(self, step: TestStep) -> dict[str, Any]:
+    def _run_step(self, run_id: str, case_id: str, item_id: str, step: TestStep) -> dict[str, Any]:
         started_at = _utc_now_iso()
         start_time = time.perf_counter()
 
@@ -212,10 +212,19 @@ class ExecutionService:
 
         try:
             timeout = step.timeout or self._config.default_step_timeout
+            runtime_params = copy.deepcopy(step.params or {})
+            runtime_params["__htf_context"] = {
+                "run_id": run_id,
+                "case_id": case_id,
+                "item_id": item_id,
+                "step_id": step.id,
+                "step_name": step.name,
+                "reports_dir": str(self._config.reports_dir),
+            }
             result = self._plugin_manager.run_action(
                 plugin_name=step.plugin,
                 action=step.action,
-                params=step.params,
+                params=runtime_params,
                 timeout=timeout,
             )
 

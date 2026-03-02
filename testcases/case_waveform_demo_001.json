@@ -1,0 +1,31 @@
+{
+  "id": "case_waveform_demo_001",
+  "name": "波形附件示例",
+  "version": "1.0.0",
+  "items": [
+    {
+      "id": "item_waveform",
+      "name": "采集波形并展示附件",
+      "steps": [
+        {
+          "id": "step_waveform_capture",
+          "name": "采集电压电流波形",
+          "type": "Action",
+          "plugin": "waveform_demo",
+          "action": "capture_waveform",
+          "params": {
+            "samples": 80,
+            "interval_ms": 1.0,
+            "voltage_base": 12.0,
+            "voltage_amp": 0.3,
+            "current_base": 1.2,
+            "current_amp": 0.12,
+            "freq_hz": 80
+          },
+          "expr": null,
+          "timeout": 10.0
+        }
+      ]
+    }
+  ]
+}

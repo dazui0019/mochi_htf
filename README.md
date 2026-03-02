@@ -46,6 +46,8 @@ uv run python main.py
 - 示例用例：`testcases/case_power_on_001.json`
 - 示例插件：`plugins/sim_device.py`
 - 电源控制示例：`testcases/case_power_ctrl_001.json` + `plugins/power_ctrl.py`
+- 示波器截图示例：`testcases/case_scope_capture_001.json` + `plugins/oscilloscope.py`
+- 波形附件示例：`testcases/case_waveform_demo_001.json` + `plugins/waveform_demo.py`
 
 ### 插件配置与自检
 - UI 的“插件”面板按插件卡片展示，支持折叠/展开。
@@ -59,6 +61,26 @@ uv run python main.py
   - `config_schema() -> dict`：配置说明（用于 UI 展示）
   - `set_config(config: dict)`：在执行前接收合并后的配置
   - `self_check(...)`：插件自检，返回 `bool` 或 `{"ok": bool, ...}`
+
+### 运行时上下文（`params.__htf_context`）
+- 框架执行每个 Step 时，会向插件 `run(action, params)` 传入运行时上下文：`params.__htf_context`。
+- 该字段为框架保留字段，测试用例中无需手工填写。
+- 当前包含字段：
+  - `run_id`
+  - `case_id`
+  - `item_id`
+  - `step_id`
+  - `step_name`
+  - `reports_dir`
+- 建议插件忽略未知字段，并避免使用 `__htf_` 前缀作为业务参数名。
+
+### 示波器截图归档
+- 新增 `oscilloscope` 插件动作：`capture_screenshot`。
+- 执行时会把截图保存到：`reports/<run_id>/artifacts/`，并在步骤 `result.artifacts`（数组）中记录附件元数据。
+- 历史详情页会按附件 `type` 渲染：`image` / `log` / `csv` / `waveform`。
+- `waveform` 类型可提供 `series` 数组（例如电压/电流通道与采样点），详情页会显示通道和采样点数量。
+- 默认 `capture_mode=placeholder`（用于打通流程）；实际接入请改为 `capture_mode=cli` 并配置 `cli_command`。
+- `cli_command` 支持占位符：`{output}`、`{address}`、`{run_id}`、`{step_id}`、`{label}`。
 
 ### 规格文档
 - `硬件测试框架_规格v1.md`
