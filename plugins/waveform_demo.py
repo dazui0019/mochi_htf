@@ -40,7 +40,7 @@ class Plugin:
         self._config = merged
 
     def actions(self) -> list[str]:
-        return ["capture_waveform"]
+        return ["capture_waveform", "capture_multi_channel_metric"]
 
     def self_check(self) -> dict[str, Any]:
         return {
@@ -49,10 +49,19 @@ class Plugin:
         }
 
     def run(self, action: str, params: dict[str, Any]) -> dict[str, Any]:
-        if action != "capture_waveform":
-            raise ValueError(f"Unsupported action: {action}")
-
         params = params or {}
+
+        if action == "capture_waveform":
+            return self._capture_waveform(params)
+
+        if action == "capture_multi_channel_metric":
+            return self._capture_multi_channel_metric(params)
+
+        raise ValueError(f"Unsupported action: {action}")
+
+    def _capture_waveform(self, params: dict[str, Any]) -> dict[str, Any]:
+        action = "capture_waveform"
+
         samples = self._read_positive_int(params, "samples", int(self._config.get("default_samples", 120)))
         interval_ms = self._read_positive_float(params, "interval_ms", float(self._config.get("default_interval_ms", 1.0)))
 
@@ -127,6 +136,57 @@ class Plugin:
             },
             "artifacts": artifacts,
         }
+
+    def _capture_multi_channel_metric(self, params: dict[str, Any]) -> dict[str, Any]:
+        action = "capture_multi_channel_metric"
+        channels = self._read_channels(params)
+        base_voltage = self._read_float(params, "base_voltage", 13.5)
+        per_channel_step = self._read_float(params, "per_channel_step", -0.2)
+        ripple_amp = abs(self._read_float(params, "ripple_amp", 0.03))
+
+        items: list[dict[str, Any]] = []
+        metrics: dict[str, float] = {}
+        for idx, channel in enumerate(channels):
+            value = base_voltage + per_channel_step * idx + ripple_amp * math.sin((idx + 1) * 0.9)
+            rounded = round(value, 4)
+            items.append(
+                {
+                    "name": f"{channel}_voltage",
+                    "value": rounded,
+                    "unit": "V",
+                }
+            )
+            metrics[f"{channel}_voltage"] = rounded
+
+        artifacts = [
+            {
+                "type": "metric",
+                "label": "multi_channel_voltage",
+                "items": items,
+            }
+        ]
+
+        return {
+            "ok": True,
+            "action": action,
+            "summary": {
+                "channel_count": len(channels),
+                "channels": channels,
+                "metrics": metrics,
+            },
+            "artifacts": artifacts,
+        }
+
+    @staticmethod
+    def _read_channels(params: dict[str, Any]) -> list[str]:
+        raw_channels = params.get("channels")
+        if isinstance(raw_channels, list):
+            channels = [str(v).strip() for v in raw_channels if str(v).strip()]
+            if channels:
+                return channels
+
+        count = Plugin._read_positive_int(params, "channel_count", 4)
+        return [f"CH{i + 1}" for i in range(count)]
 
     @staticmethod
     def _read_float(params: dict[str, Any], key: str, default: float) -> float:

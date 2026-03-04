@@ -1,0 +1,28 @@
+{
+  "id": "case_metric_multi_channel_001",
+  "name": "多通道电压指标示例",
+  "version": "1.0.0",
+  "items": [
+    {
+      "id": "item_multi_channel_metric",
+      "name": "采集多通道电压",
+      "steps": [
+        {
+          "id": "step_capture_multi_channel_voltage",
+          "name": "读取 CH1~CH4 电压",
+          "type": "Action",
+          "plugin": "waveform_demo",
+          "action": "capture_multi_channel_metric",
+          "params": {
+            "channels": ["CH1", "CH2", "CH3", "CH4"],
+            "base_voltage": 13.5,
+            "per_channel_step": -0.15,
+            "ripple_amp": 0.02
+          },
+          "expr": null,
+          "timeout": 10.0
+        }
+      ]
+    }
+  ]
+}

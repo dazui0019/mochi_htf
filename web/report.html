@@ -429,6 +429,29 @@
           artifacts.push(result.artifact);
         }
 
+        // Compatibility: allow simple scalar result, e.g. {"name":"voltage","value":13.5}.
+        if (artifacts.length === 0 && result.name !== undefined && result.value !== undefined) {
+          artifacts.push({
+            type: "metric",
+            name: result.name,
+            value: result.value,
+            unit: result.unit,
+          });
+        }
+
+        // Compatibility: allow metric map, e.g. {"values":{"voltage":13.5,"current":1.2}}.
+        if (
+          artifacts.length === 0
+          && result.values
+          && typeof result.values === "object"
+          && !Array.isArray(result.values)
+        ) {
+          artifacts.push({
+            type: "metric",
+            values: result.values,
+          });
+        }
+
         return artifacts;
       }
 
@@ -487,6 +510,67 @@
         `;
       }
 
+      function formatMetricTable(artifact) {
+        const rows = [];
+
+        if (Array.isArray(artifact.items)) {
+          artifact.items.forEach((item) => {
+            if (item && typeof item === "object" && item.name !== undefined) {
+              rows.push({
+                name: String(item.name),
+                value: item.value,
+                unit: item.unit !== undefined ? String(item.unit) : "",
+              });
+            }
+          });
+        }
+
+        if (rows.length === 0 && artifact.name !== undefined && artifact.value !== undefined) {
+          rows.push({
+            name: String(artifact.name),
+            value: artifact.value,
+            unit: artifact.unit !== undefined ? String(artifact.unit) : "",
+          });
+        }
+
+        if (rows.length === 0 && artifact.values && typeof artifact.values === "object" && !Array.isArray(artifact.values)) {
+          Object.entries(artifact.values).forEach(([k, v]) => {
+            rows.push({
+              name: String(k),
+              value: v,
+              unit: "",
+            });
+          });
+        }
+
+        if (rows.length === 0) {
+          return "<div class='small'>无指标数据</div>";
+        }
+
+        const body = rows.map((r) => `
+          <tr>
+            <td>${escapeHtml(r.name)}</td>
+            <td>${escapeHtml(typeof r.value === "string" ? r.value : formatResult(r.value))}</td>
+            <td>${escapeHtml(r.unit || "-")}</td>
+          </tr>
+        `).join("");
+
+        return `
+          <table class="artifact-table">
+            <thead>
+              <tr>
+                <th>名称</th>
+                <th>值</th>
+                <th>单位</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${body}
+            </tbody>
+          </table>
+        `;
+      }
+
       function formatArtifactBody(artifact) {
         const type = String(artifact.type || "").toLowerCase();
 
@@ -514,6 +598,10 @@
 
         if (type === "waveform") {
           return formatWaveformTable(artifact);
+        }
+
+        if (type === "metric") {
+          return formatMetricTable(artifact);
         }
 
         return `<pre class="artifact-pre">${escapeHtml(formatResult(artifact))}</pre>`;

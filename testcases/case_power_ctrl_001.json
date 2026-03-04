@@ -14,8 +14,8 @@
           "plugin": "power_ctrl",
           "action": "set_power",
           "params": {
-            "voltage": 12,
-            "current": 2
+            "voltage": 13.5,
+            "current": 20
           },
           "expr": null,
           "timeout": 10.0

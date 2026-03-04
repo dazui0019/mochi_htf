@@ -48,6 +48,7 @@ uv run python main.py
 - 电源控制示例：`testcases/case_power_ctrl_001.json` + `plugins/power_ctrl.py`
 - 示波器截图示例：`testcases/case_scope_capture_001.json` + `plugins/oscilloscope.py`
 - 波形附件示例：`testcases/case_waveform_demo_001.json` + `plugins/waveform_demo.py`
+- 多通道指标示例：`testcases/case_metric_multi_channel_001.json` + `plugins/waveform_demo.py`
 
 ### 插件配置与自检
 - UI 的“插件”面板按插件卡片展示，支持折叠/展开。
@@ -77,7 +78,7 @@ uv run python main.py
 ### 示波器截图归档
 - 新增 `oscilloscope` 插件动作：`capture_screenshot`。
 - 执行时会把截图保存到：`reports/<run_id>/artifacts/`，并在步骤 `result.artifacts`（数组）中记录附件元数据。
-- 历史详情页会按附件 `type` 渲染：`image` / `log` / `csv` / `waveform`。
+- 历史详情页会按附件 `type` 渲染：`image` / `log` / `csv` / `waveform` / `metric`。
 - `waveform` 类型可提供 `series` 数组（例如电压/电流通道与采样点），详情页会显示通道和采样点数量。
 - 默认 `capture_mode=placeholder`（用于打通流程）；实际接入请改为 `capture_mode=cli` 并配置 `cli_command`。
 - `cli_command` 支持占位符：`{output}`、`{address}`、`{run_id}`、`{step_id}`、`{label}`。
@@ -85,3 +86,4 @@ uv run python main.py
 ### 规格文档
 - `硬件测试框架_规格v1.md`
 - `使用说明.md`
+- `插件开发文档.md`
